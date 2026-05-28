@@ -56,6 +56,11 @@ type namespaceSummary struct {
 	NeedsAttention int   `json:"needsAttention,omitempty"`
 	LowConfidence  int   `json:"lowConfidence,omitempty"`
 	SavingsScore   int64 `json:"savingsScore,omitempty"`
+	// State-distribution counts (per container in the namespace).
+	OverCount    int `json:"overCount,omitempty"`
+	UnderCount   int `json:"underCount,omitempty"`
+	MissingCount int `json:"missingCount,omitempty"`
+	EqualCount   int `json:"equalCount,omitempty"`
 }
 
 type workloadSummary struct {

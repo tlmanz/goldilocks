@@ -1534,16 +1534,15 @@ SIDEBAR SHELL (Mantine-inspired AppShell + NavLink)
 }
 
 .nsCard {
-  align-items: center;
   background: var(--color-bg-elevated);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   color: var(--color-text-1);
-  display: grid;
-  gap: 0.9rem;
-  grid-template-columns: auto 1fr auto;
-  padding: 0.85rem 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 1rem 1.15rem;
   text-decoration: none;
   transition: border-color var(--transition), box-shadow var(--transition),
     transform var(--transition), background var(--transition);
@@ -1567,6 +1566,13 @@ SIDEBAR SHELL (Mantine-inspired AppShell + NavLink)
   }
 }
 
+.nsCard__top {
+  align-items: center;
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: auto 1fr auto;
+}
+
 .nsCard__avatar {
   align-items: center;
   background: var(--color-accent-3-darker);
@@ -1582,10 +1588,10 @@ SIDEBAR SHELL (Mantine-inspired AppShell + NavLink)
   width: 2.5rem;
 }
 
-.nsCard__body {
+.nsCard__heading {
   display: flex;
   flex-direction: column;
-  gap: 0.15rem;
+  gap: 0.1rem;
   min-width: 0;
 }
 
@@ -1598,9 +1604,15 @@ SIDEBAR SHELL (Mantine-inspired AppShell + NavLink)
   white-space: nowrap;
 }
 
-.nsCard__sub {
+.nsCard__updated {
   color: var(--color-text-muted);
   font-size: var(--step--1);
+  font-weight: 500;
+}
+
+.nsCard__updated--muted {
+  font-style: italic;
+  opacity: 0.85;
 }
 
 .nsCard__arrow {
@@ -1613,6 +1625,55 @@ SIDEBAR SHELL (Mantine-inspired AppShell + NavLink)
 .nsCard:focus-visible .nsCard__arrow {
   color: var(--color-accent-3-darker);
   transform: translateX(3px);
+}
+
+.nsCard__counts {
+  color: var(--color-text-1);
+  font-size: var(--step--1);
+  margin: 0;
+}
+
+.nsCard__counts strong {
+  color: var(--color-text-2);
+}
+
+.nsCard__counts--muted {
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+.nsCard__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* state-distribution mini bar */
+.distroBar {
+  background: var(--color-border);
+  border-radius: var(--radius-pill);
+  display: flex;
+  height: 6px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.distroBar__seg {
+  height: 100%;
+  min-width: 4px;
+  transition: opacity var(--transition);
+}
+
+.distroBar__seg--over    { background: var(--color-warning); }
+.distroBar__seg--under   { background: var(--color-negative); }
+.distroBar__seg--missing { background: var(--color-text-muted); }
+.distroBar__seg--equal   { background: var(--color-positive); }
+
+/* "Save ..." chip variant on namespace cards */
+.statusChip--savings {
+  background: var(--color-positive-lighter);
+  border: 1px solid var(--color-positive);
+  color: var(--color-positive);
 }
 
 .banner img {

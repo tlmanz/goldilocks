@@ -47,14 +47,81 @@
 
       <ul aria-live="off" class="namespaceList" id="js-filter-container" role="list">
         {{ range .Data.Namespaces }}
-        <li data-filter="{{ .Name }}">
+        {{ $total := .ContainerCount }}
+        {{ $hasStats := gt $total 0 }}
+        <li
+          data-filter="{{ .Name }}"
+          data-namespace="{{ .Name }}"
+          data-savings="{{ .SavingsScore }}"
+          data-workload-count="{{ .WorkloadCount }}"
+          data-needs-attention="{{ .NeedsAttention }}"
+        >
           <a class="nsCard" href="{{ $.BasePath }}dashboard/{{ .Name }}">
-            <span class="nsCard__avatar" aria-hidden="true">{{ slice .Name 0 1 }}</span>
-            <span class="nsCard__body">
-              <span class="nsCard__name">{{ .Name }}</span>
-              <span class="nsCard__sub">View workload details</span>
-            </span>
-            <i aria-hidden="true" class="nsCard__arrow fas fa-arrow-right"></i>
+            <div class="nsCard__top">
+              <span class="nsCard__avatar" aria-hidden="true">{{ slice .Name 0 1 }}</span>
+              <div class="nsCard__heading">
+                <span class="nsCard__name">{{ .Name }}</span>
+                {{ if gt .LastRecommendationUnix 0 }}
+                <time class="nsCard__updated" data-unix="{{ .LastRecommendationUnix }}">recently</time>
+                {{ else }}
+                <span class="nsCard__updated nsCard__updated--muted">No VPA data yet</span>
+                {{ end }}
+              </div>
+              <i aria-hidden="true" class="nsCard__arrow fas fa-arrow-right"></i>
+            </div>
+
+            <p class="nsCard__counts">
+              {{ if $hasStats }}
+                <strong>{{ .WorkloadCount }}</strong> workload{{ if ne .WorkloadCount 1 }}s{{ end }}
+                · <strong>{{ .ContainerCount }}</strong> container{{ if ne .ContainerCount 1 }}s{{ end }}
+              {{ else }}
+                <span class="nsCard__counts--muted">No workloads tracked yet</span>
+              {{ end }}
+            </p>
+
+            {{ if $hasStats }}
+            <div
+              class="distroBar"
+              role="img"
+              aria-label="State distribution: {{ .OverCount }} over, {{ .UnderCount }} under, {{ .MissingCount }} unconfigured, {{ .EqualCount }} on target"
+            >
+              {{ if gt .OverCount 0 }}
+              <span class="distroBar__seg distroBar__seg--over" style="flex-grow: {{ .OverCount }}" title="{{ .OverCount }} over-provisioned"></span>
+              {{ end }}
+              {{ if gt .UnderCount 0 }}
+              <span class="distroBar__seg distroBar__seg--under" style="flex-grow: {{ .UnderCount }}" title="{{ .UnderCount }} under-provisioned"></span>
+              {{ end }}
+              {{ if gt .MissingCount 0 }}
+              <span class="distroBar__seg distroBar__seg--missing" style="flex-grow: {{ .MissingCount }}" title="{{ .MissingCount }} unconfigured"></span>
+              {{ end }}
+              {{ if gt .EqualCount 0 }}
+              <span class="distroBar__seg distroBar__seg--equal" style="flex-grow: {{ .EqualCount }}" title="{{ .EqualCount }} on target"></span>
+              {{ end }}
+            </div>
+            {{ end }}
+
+            {{ if or (gt .NeedsAttention 0) (gt .LowConfidence 0) (gt .SavingsScore 0) }}
+            <div class="nsCard__chips">
+              {{ if gt .NeedsAttention 0 }}
+              <span class="statusChip statusChip--attention">
+                <i aria-hidden="true" class="fas fa-fw fa-exclamation-circle"></i>
+                {{ .NeedsAttention }} need{{ if eq .NeedsAttention 1 }}s{{ end }} attention
+              </span>
+              {{ end }}
+              {{ if gt .LowConfidence 0 }}
+              <span class="statusChip statusChip--lowconf">
+                <i aria-hidden="true" class="fas fa-fw fa-hourglass-half"></i>
+                {{ .LowConfidence }} low confidence
+              </span>
+              {{ end }}
+              {{ if gt .SavingsScore 0 }}
+              <span class="statusChip statusChip--savings">
+                <i aria-hidden="true" class="fas fa-fw fa-piggy-bank"></i>
+                Save ~{{ .SavingsScore }} (CPUm + MiB)
+              </span>
+              {{ end }}
+            </div>
+            {{ end }}
           </a>
         </li>
         {{ end }}

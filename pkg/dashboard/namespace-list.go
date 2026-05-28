@@ -6,14 +6,35 @@ import (
 	"net/http"
 
 	"github.com/fairwindsops/goldilocks/pkg/kube"
+	"github.com/fairwindsops/goldilocks/pkg/summary"
 	"github.com/fairwindsops/goldilocks/pkg/utils"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/klog/v2"
 )
 
-// NamespaceList replies with the rendered namespace list of all goldilocks enabled namespaces
-func NamespaceList(opts Options) http.Handler {
+// NamespaceListItem is the per-namespace data shape rendered into each
+// namespace card on the listing page. Stats fields are zero when the
+// namespace is labelled for Goldilocks but doesn't yet have any VPAs.
+type NamespaceListItem struct {
+	Name                   string
+	WorkloadCount          int
+	ContainerCount         int
+	NeedsAttention         int
+	LowConfidence          int
+	OverCount              int
+	UnderCount             int
+	MissingCount           int
+	EqualCount             int
+	SavingsScore           int64
+	LastRecommendationUnix int64
+}
+
+// NamespaceList replies with the rendered namespace list. When the summary
+// cache is supplied we reuse it (so a recent dashboard load makes this page
+// effectively free) and enrich each namespace card with workload counts,
+// status, and savings stats.
+func NamespaceList(opts Options, cache *summaryCache) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var listOptions v1.ListOptions
 		if opts.OnByDefault || opts.ShowAllVPAs {
@@ -44,22 +65,45 @@ func NamespaceList(opts Options) http.Handler {
 			return
 		}
 
-		// only expose the needed data from Namespace
-		// this helps to not leak additional information like
-		// annotations, labels, metadata about the Namespace to the
-		// client UI source code or javascript console
-
-		data := struct {
-			Namespaces []struct {
-				Name string
+		// Pull the cluster-wide summary through the shared cache so we can
+		// enrich the listing without paying a second VPA list when the
+		// dashboard was just loaded. Failures here are non-fatal — we still
+		// render the (stats-less) list.
+		var enrich summary.Summary
+		if cache != nil {
+			data, _, _, err := cache.Get("", "", "", func() (summary.Summary, error) {
+				return getVPAData(opts, "", "", "")
+			})
+			if err != nil {
+				klog.Warningf("namespace list: enrich via cache failed: %v", err)
+			} else {
+				enrich = data
 			}
+		}
+
+		// only expose the needed data from Namespace — keep this consistent
+		// with the original handler so we don't leak metadata.
+		data := struct {
+			Namespaces []NamespaceListItem
 		}{}
 
 		for _, ns := range namespacesList.Items {
-			item := struct {
-				Name string
-			}{
-				Name: ns.Name,
+			item := NamespaceListItem{Name: ns.Name}
+			if nsSummary, ok := enrich.Namespaces[ns.Name]; ok {
+				item.WorkloadCount = len(nsSummary.Workloads)
+				containerCount := 0
+				for _, w := range nsSummary.Workloads {
+					containerCount += len(w.Containers)
+				}
+				item.ContainerCount = containerCount
+				item.NeedsAttention = nsSummary.NeedsAttention
+				item.LowConfidence = nsSummary.LowConfidence
+				item.OverCount = nsSummary.OverCount
+				item.UnderCount = nsSummary.UnderCount
+				item.MissingCount = nsSummary.MissingCount
+				item.EqualCount = nsSummary.EqualCount
+				item.SavingsScore = nsSummary.SavingsScore
+				item.LastRecommendationUnix = nsSummary.LastRecommendationUnix
 			}
 			data.Namespaces = append(data.Namespaces, item)
 		}

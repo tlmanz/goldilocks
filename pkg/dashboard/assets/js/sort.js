@@ -49,10 +49,22 @@
     return getSavingsScore(b) - getSavingsScore(a);
   }
 
+  function workloadCount(el) {
+    const attr = parseInt(el.dataset.workloadCount || "", 10);
+    if (!isNaN(attr)) return attr;
+    return el.querySelectorAll(".js-workload").length;
+  }
+
   function compareWorkloadCount(a, b) {
-    const ac = a.querySelectorAll(".js-workload").length;
-    const bc = b.querySelectorAll(".js-workload").length;
-    return bc - ac;
+    return workloadCount(b) - workloadCount(a);
+  }
+
+  function attentionCount(el) {
+    return parseInt(el.dataset.needsAttention || "0", 10) || 0;
+  }
+
+  function compareAttention(a, b) {
+    return attentionCount(b) - attentionCount(a);
   }
 
   function sortEntries(mode) {
@@ -65,7 +77,12 @@
         cmp = compareSavings;
         break;
       case "deviation":
-        cmp = compareDeviation;
+        // On the namespace list page, no .diffBar children exist; fall back
+        // to needs-attention count as a proxy for "deviation magnitude".
+        cmp = (a, b) => {
+          const d = compareDeviation(a, b);
+          return d !== 0 ? d : compareAttention(a, b);
+        };
         break;
       case "workloads":
         cmp = compareWorkloadCount;
@@ -86,11 +103,12 @@
     }
   }
 
-  // If the page has no workloads (e.g. the namespace list page), hide the
-  // sort options that only make sense on the dashboard so the dropdown
-  // doesn't offer confusing no-ops.
-  const hasWorkloads = container.querySelector(".js-workload") !== null;
-  if (!hasWorkloads) {
+  // Sort options that depend on per-namespace stats (workloads / savings /
+  // deviation) only make sense if at least one entry has that data attribute.
+  // The namespace list page now has these attrs when the cache provides
+  // summary data; remove them only if literally no entry exposes them.
+  const sample = container.querySelector("[data-namespace], [data-filter]");
+  if (sample && !sample.dataset.savings && !sample.dataset.workloadCount && !sample.querySelector(".js-workload")) {
     Array.from(select.options).forEach((opt) => {
       if (
         opt.value === "deviation" ||

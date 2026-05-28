@@ -67,7 +67,7 @@ func GetRouter(setters ...Option) *mux.Router {
 	router.Handle("/dashboard/{namespace:[a-zA-Z0-9-]+}", Dashboard(*opts, cache))
 
 	// namespace list
-	router.Handle("/namespaces", NamespaceList(*opts))
+	router.Handle("/namespaces", NamespaceList(*opts, cache))
 
 	// root
 	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

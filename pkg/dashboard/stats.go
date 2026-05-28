@@ -152,6 +152,7 @@ func populatePerNamespaceStats(s *summary.Summary) {
 		needs := 0
 		lowConf := 0
 		var savings int64
+		over, under, missing, equal := 0, 0, 0, 0
 
 		for _, w := range ns.Workloads {
 			if w.LowConfidence {
@@ -169,8 +170,10 @@ func populatePerNamespaceStats(s *summary.Summary) {
 				switch {
 				case cpuReq.IsZero() || memReq.IsZero():
 					needs++
+					missing++
 				case cpuDiff > 0 || memDiff > 0:
 					needs++
+					over++
 					if cpuDiff > 0 {
 						savings += cpuDiff
 					}
@@ -179,6 +182,9 @@ func populatePerNamespaceStats(s *summary.Summary) {
 					}
 				case cpuDiff < 0 || memDiff < 0:
 					needs++
+					under++
+				default:
+					equal++
 				}
 			}
 		}
@@ -186,6 +192,10 @@ func populatePerNamespaceStats(s *summary.Summary) {
 		ns.NeedsAttention = needs
 		ns.LowConfidence = lowConf
 		ns.SavingsScore = savings
+		ns.OverCount = over
+		ns.UnderCount = under
+		ns.MissingCount = missing
+		ns.EqualCount = equal
 		s.Namespaces[nsName] = ns
 	}
 }
