@@ -1,16 +1,23 @@
 {{ define "container" }}
-{{ $cpuRequest := (index $.Requests (resourceName "cpu")) }}
-{{ $cpuLimit := (index $.Limits (resourceName "cpu")) }}
-{{ $memRequest := (index $.Requests (resourceName "memory")) }}
-{{ $memLimit := (index $.Limits (resourceName "memory")) }}
+{{ $ctx := . }}
+{{ $c := $ctx.Summary }}
+{{ $ns := $ctx.Namespace }}
+{{ $wName := $ctx.WorkloadName }}
+{{ $wType := $ctx.WorkloadType }}
+{{ $cName := $ctx.ContainerName }}
 
-{{ $cpuLowerBound := (index $.LowerBound (resourceName "cpu")) }}
-{{ $cpuUpperBound := (index $.UpperBound (resourceName "cpu")) }}
-{{ $memLowerBound := (index $.LowerBound (resourceName "memory")) }}
-{{ $memUpperBound := (index $.UpperBound (resourceName "memory")) }}
+{{ $cpuRequest := (index $c.Requests (resourceName "cpu")) }}
+{{ $cpuLimit := (index $c.Limits (resourceName "cpu")) }}
+{{ $memRequest := (index $c.Requests (resourceName "memory")) }}
+{{ $memLimit := (index $c.Limits (resourceName "memory")) }}
 
-{{ $cpuTarget := (index $.Target (resourceName "cpu")) }}
-{{ $memTarget := (index $.Target (resourceName "memory")) }}
+{{ $cpuLowerBound := (index $c.LowerBound (resourceName "cpu")) }}
+{{ $cpuUpperBound := (index $c.UpperBound (resourceName "cpu")) }}
+{{ $memLowerBound := (index $c.LowerBound (resourceName "memory")) }}
+{{ $memUpperBound := (index $c.UpperBound (resourceName "memory")) }}
+
+{{ $cpuTarget := (index $c.Target (resourceName "cpu")) }}
+{{ $memTarget := (index $c.Target (resourceName "memory")) }}
 
 {{ $icon := "icon"}}
 {{ $text := "text" }}
@@ -18,15 +25,29 @@
 {{ $limit := "limit" }}
 {{ $uuid := getUUID }}
 
+{{/* Guaranteed QoS block */}}
 <section class="detailInfo --qos verticalRhythm">
   <div class="layoutCluster --start">
-    <h5>Guaranteed QoS</h5>
+    <h5>
+      Guaranteed QoS
+      <button
+        type="button"
+        class="infoTip"
+        data-tooltip
+        aria-label="What is Guaranteed QoS?"
+      >
+        <i aria-hidden="true" class="fas fa-fw fa-info-circle"></i>
+        <span class="infoTip__bubble" role="tooltip">
+          A Pod is given <strong>Guaranteed</strong> QoS when every container has equal CPU and memory requests and limits. This is the most stable class — Kubernetes is least likely to evict these pods under pressure.
+        </span>
+      </button>
+    </h5>
 
     {{ if opts.EnableCost }}
-    {{ if lt $.GuaranteedCostInt 0 }}
-      <p class="lower-number lower-number--negative">-${{ $.GuaranteedCost }}/hour</p>
+    {{ if lt $c.GuaranteedCostInt 0 }}
+      <p class="lower-number lower-number--negative">-${{ $c.GuaranteedCost }}/hour</p>
     {{ else }}
-      <p class="lower-number lower-number--positive">+${{ $.GuaranteedCost }}/hour</p>
+      <p class="lower-number lower-number--positive">+${{ $c.GuaranteedCost }}/hour</p>
     {{ end }}
     {{ end }}
   </div>
@@ -42,6 +63,7 @@
         <th scope="col">Current</th>
         <td></td>
         <th scope="col">Guaranteed</th>
+        <th scope="col" class="compTable__diffCol">Δ</th>
       </tr>
     </thead>
     <tbody>
@@ -56,6 +78,13 @@
           <span class="visually-hidden">{{ getStatus $cpuRequest $cpuTarget $text }}</span>
         </td>
         <td>{{ printResource $cpuTarget }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $cpuRequest $cpuTarget }}"
+            style="--diff-pct: {{ diffPercent $cpuRequest $cpuTarget }}%;"
+            title="{{ diffPercent $cpuRequest $cpuTarget }}% deviation from target"
+          ></span>
+        </td>
       </tr>
 
       <tr>
@@ -69,6 +98,13 @@
           <span class="visually-hidden">{{ getStatus $cpuLimit $cpuTarget $text }}</span>
         </td>
         <td>{{ printResource $cpuTarget }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $cpuLimit $cpuTarget }}"
+            style="--diff-pct: {{ diffPercent $cpuLimit $cpuTarget }}%;"
+            title="{{ diffPercent $cpuLimit $cpuTarget }}% deviation from target"
+          ></span>
+        </td>
       </tr>
 
       <tr>
@@ -82,6 +118,13 @@
           <span class="visually-hidden">{{ getStatus $memRequest $memTarget $text }}</span>
         </td>
         <td>{{ printResource $memTarget }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $memRequest $memTarget }}"
+            style="--diff-pct: {{ diffPercent $memRequest $memTarget }}%;"
+            title="{{ diffPercent $memRequest $memTarget }}% deviation from target"
+          ></span>
+        </td>
       </tr>
 
       <tr>
@@ -95,32 +138,73 @@
           <span class="visually-hidden">{{ getStatus $memLimit $memTarget $text }}</span>
         </td>
         <td>{{ printResource $memTarget }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $memLimit $memTarget }}"
+            style="--diff-pct: {{ diffPercent $memLimit $memTarget }}%;"
+            title="{{ diffPercent $memLimit $memTarget }}% deviation from target"
+          ></span>
+        </td>
       </tr>
     </tbody>
   </table>
 
-  <details>
-    <summary>YAML for Recommended Settings</summary>
+  <details class="recommendationActions">
+    <summary>YAML / kubectl for Guaranteed</summary>
 
-    <pre class="fix-yaml"><code class="language-yaml">resources:
+    <div class="codeBlock">
+      <div class="codeBlock__header">
+        <span>resources.yaml</span>
+        <button type="button" class="js-copy linkPill" data-copy-target="#yaml-g-{{ $uuid }}">
+          <i aria-hidden="true" class="fas fa-fw fa-copy"></i> Copy YAML
+        </button>
+      </div>
+      <pre class="fix-yaml"><code id="yaml-g-{{ $uuid }}" class="language-yaml">resources:
   requests:
     cpu: {{ printResource $cpuTarget }}
     memory: {{ printResource $memTarget }}
   limits:
     cpu: {{ printResource $cpuTarget}}
     memory: {{ printResource $memTarget }}</code></pre>
+    </div>
+
+    {{ if and $ns $wName $wType $cName }}
+    <div class="codeBlock">
+      <div class="codeBlock__header">
+        <span>kubectl set resources</span>
+        <button type="button" class="js-copy linkPill" data-copy-target="#kubectl-g-{{ $uuid }}">
+          <i aria-hidden="true" class="fas fa-fw fa-copy"></i> Copy command
+        </button>
+      </div>
+      <pre><code id="kubectl-g-{{ $uuid }}" class="language-shell">kubectl set resources {{ $wType | lower }}/{{ $wName }} -n {{ $ns }} -c {{ $cName }} --requests=cpu={{ printResource $cpuTarget }},memory={{ printResource $memTarget }} --limits=cpu={{ printResource $cpuTarget }},memory={{ printResource $memTarget }}</code></pre>
+    </div>
+    {{ end }}
   </details>
 </section>
 
+{{/* Burstable QoS block */}}
 <section class="detailInfo --qos verticalRhythm">
   <div class="layoutCluster --start">
-    <h5>Burstable QoS</h5>
+    <h5>
+      Burstable QoS
+      <button
+        type="button"
+        class="infoTip"
+        data-tooltip
+        aria-label="What is Burstable QoS?"
+      >
+        <i aria-hidden="true" class="fas fa-fw fa-info-circle"></i>
+        <span class="infoTip__bubble" role="tooltip">
+          A Pod is given <strong>Burstable</strong> QoS when at least one container has a CPU or memory request but requests don't match limits. These pods get a baseline of resources but can scale up — more flexible, but evicted before Guaranteed pods under pressure.
+        </span>
+      </button>
+    </h5>
 
     {{ if opts.EnableCost }}
-    {{ if lt $.BurstableCostInt 0 }}
-      <p class="lower-number lower-number--negative">-${{ $.BurstableCost }}/hour</p>
+    {{ if lt $c.BurstableCostInt 0 }}
+      <p class="lower-number lower-number--negative">-${{ $c.BurstableCost }}/hour</p>
     {{ else }}
-      <p class="lower-number lower-number--positive">+${{ $.BurstableCost }}/hour</p>
+      <p class="lower-number lower-number--positive">+${{ $c.BurstableCost }}/hour</p>
     {{ end }}
     {{ end }}
   </div>
@@ -136,6 +220,7 @@
         <th scope="col">Current</th>
         <td></td>
         <th scope="col">Burstable</th>
+        <th scope="col" class="compTable__diffCol">Δ</th>
       </tr>
     </thead>
     <tbody>
@@ -150,6 +235,12 @@
           <span class="visually-hidden">{{ getStatusRange $cpuRequest $cpuLowerBound $cpuUpperBound $text $request}}</span>
         </td>
         <td>{{ printResource $cpuLowerBound }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $cpuRequest $cpuLowerBound }}"
+            style="--diff-pct: {{ diffPercent $cpuRequest $cpuLowerBound }}%;"
+          ></span>
+        </td>
       </tr>
 
       <tr>
@@ -163,6 +254,12 @@
           <span class="visually-hidden">{{ getStatusRange $cpuLimit $cpuLowerBound $cpuUpperBound $text $limit }}</span>
         </td>
         <td>{{ printResource $cpuUpperBound }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $cpuLimit $cpuUpperBound }}"
+            style="--diff-pct: {{ diffPercent $cpuLimit $cpuUpperBound }}%;"
+          ></span>
+        </td>
       </tr>
 
       <tr>
@@ -176,6 +273,12 @@
           <span class="visually-hidden">{{ getStatusRange $memRequest $memLowerBound $memUpperBound $text $limit }}</span>
         </td>
         <td>{{ printResource $memLowerBound }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $memRequest $memLowerBound }}"
+            style="--diff-pct: {{ diffPercent $memRequest $memLowerBound }}%;"
+          ></span>
+        </td>
       </tr>
 
       <tr>
@@ -189,20 +292,46 @@
           <span class="visually-hidden">{{ getStatusRange $memLimit $memLowerBound $memUpperBound $text $limit }}</span>
         </td>
         <td>{{ printResource $memUpperBound }}</td>
+        <td class="compTable__diffCol">
+          <span
+            class="diffBar diffBar--{{ diffDirection $memLimit $memUpperBound }}"
+            style="--diff-pct: {{ diffPercent $memLimit $memUpperBound }}%;"
+          ></span>
+        </td>
       </tr>
     </tbody>
   </table>
 
-  <details>
-    <summary>YAML for Recommended Settings</summary>
+  <details class="recommendationActions">
+    <summary>YAML / kubectl for Burstable</summary>
 
-    <pre class="fix-yaml"><code class="language-yaml">resources:
+    <div class="codeBlock">
+      <div class="codeBlock__header">
+        <span>resources.yaml</span>
+        <button type="button" class="js-copy linkPill" data-copy-target="#yaml-b-{{ $uuid }}">
+          <i aria-hidden="true" class="fas fa-fw fa-copy"></i> Copy YAML
+        </button>
+      </div>
+      <pre class="fix-yaml"><code id="yaml-b-{{ $uuid }}" class="language-yaml">resources:
   requests:
     cpu: {{ printResource $cpuLowerBound }}
     memory: {{ printResource $memLowerBound }}
   limits:
     cpu: {{ printResource $cpuUpperBound}}
     memory: {{ printResource $memUpperBound }}</code></pre>
+    </div>
+
+    {{ if and $ns $wName $wType $cName }}
+    <div class="codeBlock">
+      <div class="codeBlock__header">
+        <span>kubectl set resources</span>
+        <button type="button" class="js-copy linkPill" data-copy-target="#kubectl-b-{{ $uuid }}">
+          <i aria-hidden="true" class="fas fa-fw fa-copy"></i> Copy command
+        </button>
+      </div>
+      <pre><code id="kubectl-b-{{ $uuid }}" class="language-shell">kubectl set resources {{ $wType | lower }}/{{ $wName }} -n {{ $ns }} -c {{ $cName }} --requests=cpu={{ printResource $cpuLowerBound }},memory={{ printResource $memLowerBound }} --limits=cpu={{ printResource $cpuUpperBound }},memory={{ printResource $memUpperBound }}</code></pre>
+    </div>
+    {{ end }}
   </details>
 </section>
 {{ end }}

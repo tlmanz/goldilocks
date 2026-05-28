@@ -10,27 +10,32 @@
     id="js-filter-form"
     role="search"
 >
-    <div class="control-block">
-        <label for="namespace-filter-input">
-            Filter namespaces.
-        </label>
+    <div class="filterRow">
+        <div class="control-block">
+            <label for="namespace-filter-input">
+                Filter namespaces or workloads
+            </label>
+            <p class="control-block__description" id="namespace-filter-desc">Results update as you type — matches namespace and workload names.</p>
+            <input
+                aria-controls="js-filter-container"
+                aria-describedby="namespace-filter-desc"
+                id="namespace-filter-input"
+                type="text"
+                placeholder="Type to filter…"
+            />
+        </div>
 
-        <p class="control-block__description" id="namespace-filter-desc">Results update as you type.</p>
-
-        <input
-            aria-controls="js-filter-container"
-            aria-describedby="namespace-filter-desc"
-            id="namespace-filter-input"
-            type="text"
-        />
+        <div class="control-block control-block--sort">
+            <label for="js-sort-select">Sort by</label>
+            <select id="js-sort-select" class="control-select">
+                <option value="name">Name (A–Z)</option>
+                <option value="savings">Potential savings</option>
+                <option value="deviation">Deviation from target</option>
+                <option value="workloads">Workload count</option>
+            </select>
+        </div>
     </div>
 
-    <!-- Three elements needed here for screen reader announcements and visual status to play nicely:
-        1. Polite output, to handle status updates generally
-        2. Alert output, to be more disruptive when that would be helpful, e.g. as soon as they've filtered down to no results
-        3. An output that's always shown visually. We have to remove content from the above two to get them to announce the same content back to back. This would make the words pop in and out visually.
-      Note that the elements used for dynamic screen reader announcements can't themselves be injected or they won't work. Must be pre-existing containers into which the announcment content is injected. 
-    -->
     {{ with $initialStatus := (len .) | printf "%d total namespaces found" }}
     <div class="control-block">
         <output aria-hidden="true">{{ $initialStatus }}</output>

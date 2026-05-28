@@ -1,18 +1,89 @@
 {{define "namespace"}}
 {{ $foundFirstWorkload := false }}
+{{ $nsSlug := slugify $.Namespace }}
 
-<article class="detailInfo --namespace verticalRhythm" data-filter="{{ $.Namespace }}">
-  <h2>
-    <span class="badge detailBadge --namespace">Namespace</span>
-    {{ $.Namespace }}
-  </h2>
+<article
+  class="detailInfo --namespace verticalRhythm js-reviewable"
+  data-filter="{{ $.Namespace }}"
+  data-namespace="{{ $.Namespace }}"
+  data-savings="{{ $.SavingsScore }}"
+  data-review-id="ns:{{ $.Namespace }}"
+  id="ns-{{ $nsSlug }}"
+>
+  <header class="detailInfo__header">
+    <h2>
+      <span class="badge detailBadge --namespace">Namespace</span>
+      {{ $.Namespace }}
+    </h2>
+    <div class="detailInfo__headerMeta">
+      {{ if gt $.NeedsAttention 0 }}
+      <span class="statusChip statusChip--attention" title="{{ $.NeedsAttention }} containers deviate from target">
+        <i aria-hidden="true" class="fas fa-fw fa-exclamation-circle"></i>
+        {{ $.NeedsAttention }} need{{ if eq $.NeedsAttention 1 }}s{{ end }} attention
+      </span>
+      {{ end }}
+      {{ if gt $.LowConfidence 0 }}
+      <span class="statusChip statusChip--lowconf" title="{{ $.LowConfidence }} workloads have low-confidence VPA recommendations">
+        <i aria-hidden="true" class="fas fa-fw fa-hourglass-half"></i>
+        {{ $.LowConfidence }} low confidence
+      </span>
+      {{ end }}
+      {{ if gt $.LastRecommendationUnix 0 }}
+      <span class="statusChip statusChip--ts">
+        <i aria-hidden="true" class="fas fa-fw fa-clock"></i>
+        Updated <time data-unix="{{ $.LastRecommendationUnix }}">recently</time>
+      </span>
+      {{ end }}
+      <button
+        type="button"
+        class="js-review linkPill"
+        data-review-target='[data-review-id="ns:{{ $.Namespace }}"]'
+        title="Mark this namespace as reviewed"
+      >
+        <i aria-hidden="true" class="fas fa-fw fa-check"></i>
+        <span class="js-review-label">Mark reviewed</span>
+      </button>
+    </div>
+  </header>
 
-  {{ if not .IsOnlyNamespace }}
-  <a
-    class="detailLink --namespace"
-    href="{{ $.BasePath }}dashboard/{{ $.Namespace }}"
-  >Limit results to the {{ $.Namespace }} namespace</a>
-  {{ end }}
+  <div class="layoutCluster --start">
+    {{ if not .IsOnlyNamespace }}
+    <a
+      class="detailLink --namespace"
+      href="{{ $.BasePath }}dashboard/{{ $.Namespace }}"
+    >Limit results to the {{ $.Namespace }} namespace</a>
+    {{ end }}
+
+    {{ if gt (len $.Workloads) 0 }}
+    <button
+      type="button"
+      class="js-export-ns linkPill"
+      data-namespace="{{ $.Namespace }}"
+      data-format="yaml"
+      title="Download all recommendations in {{ $.Namespace }} as YAML"
+    >
+      <i aria-hidden="true" class="fas fa-fw fa-download"></i> Export YAML
+    </button>
+    <button
+      type="button"
+      class="js-export-ns linkPill"
+      data-namespace="{{ $.Namespace }}"
+      data-format="json"
+      title="Download all recommendations in {{ $.Namespace }} as JSON"
+    >
+      <i aria-hidden="true" class="fas fa-fw fa-download"></i> Export JSON
+    </button>
+    <button
+      type="button"
+      class="js-export-ns linkPill"
+      data-namespace="{{ $.Namespace }}"
+      data-format="csv"
+      title="Download current + recommended resources in {{ $.Namespace }} as CSV"
+    >
+      <i aria-hidden="true" class="fas fa-fw fa-file-csv"></i> Export CSV
+    </button>
+    {{ end }}
+  </div>
 
   <details open>
     <summary>Workloads</summary>
@@ -22,11 +93,46 @@
 
     {{ else }}
       {{ range $workload := $.Workloads }}
+      {{ $wSlug := printf "%s--%s" (slugify $workload.ControllerName) (slugify $workload.ControllerType) }}
 
-    <div class="detailInfo --deployment verticalRhythm">
+    <div
+      class="detailInfo --deployment verticalRhythm js-workload js-reviewable"
+      data-workload-name="{{ $workload.ControllerName }}"
+      data-workload-type="{{ $workload.ControllerType }}"
+      data-namespace="{{ $.Namespace }}"
+      data-filter="{{ $.Namespace }} {{ $workload.ControllerName }} {{ $workload.ControllerType }}"
+      data-review-id="wl:{{ $.Namespace }}:{{ $workload.ControllerType }}:{{ $workload.ControllerName }}"
+      id="wl-{{ $nsSlug }}--{{ $wSlug }}"
+    >
       <h3>
-        <span class="badge detailBadge --deployment">{{ $workload.ControllerType }}</span>
+        <span class="badge detailBadge --deployment">
+          <i aria-hidden="true" class="fas fa-fw {{ controllerIcon $workload.ControllerType }}"></i>
+          {{ $workload.ControllerType }}
+        </span>
         {{ $workload.ControllerName }}
+        {{ if $workload.LowConfidence }}
+        <span class="statusChip statusChip--lowconf" title="VPA reports low-confidence recommendations for this workload">
+          <i aria-hidden="true" class="fas fa-fw fa-hourglass-half"></i>
+          Low confidence
+        </span>
+        {{ end }}
+        <a
+          class="anchorLink"
+          href="#wl-{{ $nsSlug }}--{{ $wSlug }}"
+          aria-label="Permalink to {{ $workload.ControllerName }}"
+          title="Permalink to this workload"
+        >
+          <i aria-hidden="true" class="fas fa-link"></i>
+        </a>
+        <button
+          type="button"
+          class="js-review linkPill linkPill--ghost"
+          data-review-target='[data-review-id="wl:{{ $.Namespace }}:{{ $workload.ControllerType }}:{{ $workload.ControllerName }}"]'
+          title="Mark this workload as reviewed"
+        >
+          <i aria-hidden="true" class="fas fa-fw fa-check"></i>
+          <span class="js-review-label">Mark reviewed</span>
+        </button>
       </h3>
 
       <details
@@ -36,15 +142,33 @@
         <summary>Containers</summary>
 
         {{ range $cName, $cSummary := $workload.Containers }}
-        <div class="detailInfo --container verticalRhythm">
+        {{ $cSlug := slugify $cName }}
+        {{ $cState := containerState $cSummary.Requests $cSummary.Target }}
+        <div
+          class="detailInfo --container verticalRhythm"
+          id="c-{{ $nsSlug }}--{{ $wSlug }}--{{ $cSlug }}"
+          data-state="{{ $cState }}"
+          data-container-name="{{ $cName }}"
+          data-cpu-request="{{ printResource (index $cSummary.Requests (resourceName "cpu")) }}"
+          data-cpu-limit="{{ printResource (index $cSummary.Limits (resourceName "cpu")) }}"
+          data-cpu-target="{{ printResource (index $cSummary.Target (resourceName "cpu")) }}"
+          data-cpu-lower="{{ printResource (index $cSummary.LowerBound (resourceName "cpu")) }}"
+          data-cpu-upper="{{ printResource (index $cSummary.UpperBound (resourceName "cpu")) }}"
+          data-mem-request="{{ printResource (index $cSummary.Requests (resourceName "memory")) }}"
+          data-mem-limit="{{ printResource (index $cSummary.Limits (resourceName "memory")) }}"
+          data-mem-target="{{ printResource (index $cSummary.Target (resourceName "memory")) }}"
+          data-mem-lower="{{ printResource (index $cSummary.LowerBound (resourceName "memory")) }}"
+          data-mem-upper="{{ printResource (index $cSummary.UpperBound (resourceName "memory")) }}"
+        >
           <h4>
             <span class="badge detailBadge --container">Container</span>
             {{ $cName }}
+            <span class="stateChip stateChip--{{ $cState }}" aria-label="Container state: {{ $cState }}">{{ $cState }}</span>
           </h4>
 
           {{ if opts.EnableCost }}
           {{ if gt $cSummary.ContainerCostInt 0 }}
-          <span class="top-number">${{ $cSummary.ContainerCost }}/hour</span> 
+          <span class="top-number">${{ $cSummary.ContainerCost }}/hour</span>
           {{ end }}
           {{ end }}
 
@@ -52,7 +176,7 @@
             <summary>Details</summary>
 
             <div class="layoutLineup">
-              {{ template "container" $cSummary }}
+              {{ template "container" (dict "Summary" $cSummary "Namespace" $.Namespace "WorkloadName" $workload.ControllerName "WorkloadType" $workload.ControllerType "ContainerName" $cName) }}
             </div>
           </details>
         </div>

@@ -1,0 +1,56 @@
+{{ define "summary_cards" }}
+{{ $s := .Data.Stats }}
+<section class="summaryCards" aria-label="Cluster recommendations summary">
+  <button
+    type="button"
+    class="summaryCard js-card-filter"
+    data-state-filter=""
+    aria-pressed="true"
+  >
+    <p class="summaryCard__label">Namespaces</p>
+    <p class="summaryCard__value">{{ $s.NamespaceCount }}</p>
+    <p class="summaryCard__sub">{{ $s.WorkloadCount }} workloads · {{ $s.ContainerCount }} containers</p>
+  </button>
+
+  <button
+    type="button"
+    class="summaryCard summaryCard--warning js-card-filter"
+    data-state-filter="over"
+    aria-pressed="false"
+  >
+    <p class="summaryCard__label">Over-provisioned</p>
+    <p class="summaryCard__value">{{ $s.OverProvisioned }}</p>
+    <p class="summaryCard__sub">Containers above target</p>
+  </button>
+
+  <button
+    type="button"
+    class="summaryCard summaryCard--danger js-card-filter"
+    data-state-filter="under,missing"
+    aria-pressed="false"
+  >
+    <p class="summaryCard__label">Under-provisioned</p>
+    <p class="summaryCard__value">{{ $s.UnderProvisioned }}</p>
+    <p class="summaryCard__sub">
+      {{ if gt $s.NotConfigured 0 }}{{ $s.NotConfigured }} unconfigured{{ else }}Containers below target{{ end }}
+    </p>
+  </button>
+
+  <button
+    type="button"
+    class="summaryCard summaryCard--success js-card-filter"
+    data-state-filter="over"
+    aria-pressed="false"
+  >
+    <p class="summaryCard__label">Potential savings</p>
+    <p class="summaryCard__value">
+      {{ if $s.HasCPUSavings }}{{ $s.CPUSavings }}{{ else }}—{{ end }}
+      {{ if and $s.HasCPUSavings $s.HasMemorySavings }} · {{ end }}
+      {{ if $s.HasMemorySavings }}{{ $s.MemorySavings }}{{ end }}
+    </p>
+    <p class="summaryCard__sub">
+      {{ if $s.HasDollarSavings }}≈ ${{ printf "%.2f" $s.DollarSavings }}/hour{{ else }}CPU + memory you could reclaim{{ end }}
+    </p>
+  </button>
+</section>
+{{ end }}

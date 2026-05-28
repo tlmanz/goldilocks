@@ -1,60 +1,98 @@
 {{define "navigation"}}
-<a href="{{ .BasePath }}">
-  <img alt="Goldilocks" class="logo" src="static/images/goldilocks.svg" />
-</a>
+{{ $isDashboard := hasField .Data "VpaData" }}
+{{ $nsCount := 0 }}
+{{ if $isDashboard }}
+  {{ $nsCount = len .Data.VpaData.Namespaces }}
+{{ else if hasField .Data "Namespaces" }}
+  {{ $nsCount = len .Data.Namespaces }}
+{{ end }}
 
-<p class="logoSupport">
-  An Open Source Project by
-  <a
-    href="https://fairwinds.com?source=goldilocks"
-    rel="noreferrer noopener"
-    target="_blank"
-  >
-    <img
-      alt="Fairwinds"
-      class="logo logo--secondary"
-      src="static/images/fw-logo.png"
-    />
-    <span class="visually-hidden">(Opens in new window)</span>
-  </a>
-</p>
+<div class="navShell">
+  <div class="navShell__brand">
+    <a class="navShell__brandLink" href="{{ .BasePath }}" aria-label="Goldilocks home">
+      <img alt="Goldilocks" class="navShell__brandLogo" src="static/images/goldilocks.svg" />
+    </a>
+    <p class="navShell__brandTagline">Right-size your Kubernetes resources</p>
+  </div>
 
-<nav>
-  <ul class="navList" role="list">
-    <li>
-      <a class="linkIcon" href="{{ .BasePath }}">
-        <i aria-hidden="true" class="fas fa-fw fa-list-ul"></i>
-        List All Namespaces
-      </a>
-    </li>
-    <li>
-      <a class="linkIcon" href="{{ .BasePath }}dashboard">
-        <i aria-hidden="true" class="far fa-fw fa-eye"></i>
-        Detail All Namespaces
-      </a>
-    </li>
-    {{ if hasField .Data "VpaData" }}
-    <li>
-      <a class="linkIcon" href="#glossary">
-        <i aria-hidden="true" class="fas fa-fw fa-book"></i>
-        Glossary
-      </a>
-    </li>
-    {{ end }}
-  </ul>
-</nav>
+  <nav class="navShell__nav" aria-label="Primary">
+    <div class="navShell__section">
+      <p class="navShell__sectionLabel">Navigation</p>
+      <ul class="navShell__list" role="list">
+        <li>
+          <a
+            class="navShell__link{{ if not $isDashboard }} --active{{ end }}"
+            href="{{ .BasePath }}"
+            {{ if not $isDashboard }}aria-current="page"{{ end }}
+          >
+            <i aria-hidden="true" class="navShell__linkIcon fas fa-fw fa-list-ul"></i>
+            <span class="navShell__linkLabel">Namespaces</span>
+            {{ if and (not $isDashboard) (gt $nsCount 0) }}
+            <span class="navShell__linkCount">{{ $nsCount }}</span>
+            {{ end }}
+          </a>
+        </li>
+        <li>
+          <a
+            class="navShell__link{{ if $isDashboard }} --active{{ end }}"
+            href="{{ .BasePath }}dashboard"
+            {{ if $isDashboard }}aria-current="page"{{ end }}
+          >
+            <i aria-hidden="true" class="navShell__linkIcon far fa-fw fa-eye"></i>
+            <span class="navShell__linkLabel">Detail view</span>
+            {{ if and $isDashboard (gt $nsCount 0) }}
+            <span class="navShell__linkCount">{{ $nsCount }}</span>
+            {{ end }}
+          </a>
+        </li>
+      </ul>
+    </div>
 
-<p class="logoSupport">
-  Want more? <br>
-  Automate Goldilocks for free with<br>
-  <a
-    href= "https://fairwinds.com/insights-signup/goldilocks"
-    rel="noreferrer noopener"
-    target="_blank"
-  > Fairwinds Insights
-    <span class="visually-hidden">(Opens in new window)</span>
-  </a>
-</p>
+    <div class="navShell__section">
+      <p class="navShell__sectionLabel">Resources</p>
+      <ul class="navShell__list" role="list">
+        <li>
+          <a
+            class="navShell__link"
+            href="https://goldilocks.docs.fairwinds.com/"
+            rel="noreferrer noopener"
+            target="_blank"
+          >
+            <i aria-hidden="true" class="navShell__linkIcon fas fa-fw fa-book"></i>
+            <span class="navShell__linkLabel">Documentation</span>
+            <i aria-hidden="true" class="navShell__linkExternal fas fa-external-link-alt"></i>
+          </a>
+        </li>
+        <li>
+          <a
+            class="navShell__link"
+            href="https://github.com/FairwindsOps/goldilocks"
+            rel="noreferrer noopener"
+            target="_blank"
+          >
+            <i aria-hidden="true" class="navShell__linkIcon fab fa-fw fa-github"></i>
+            <span class="navShell__linkLabel">GitHub</span>
+            <i aria-hidden="true" class="navShell__linkExternal fas fa-external-link-alt"></i>
+          </a>
+        </li>
+      </ul>
+    </div>
+  </nav>
 
-
+  <div class="navShell__footer">
+    <p class="navShell__footerLabel">Powered by</p>
+    <a
+      class="navShell__footerLink"
+      href="https://fairwinds.com?source=goldilocks"
+      rel="noreferrer noopener"
+      target="_blank"
+    >
+      <img
+        alt="Fairwinds"
+        class="navShell__footerLogo"
+        src="static/images/fw-logo.png"
+      />
+    </a>
+  </div>
+</div>
 {{end}}

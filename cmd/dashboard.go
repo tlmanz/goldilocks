@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/util/sets"
@@ -32,6 +33,8 @@ var (
 	basePath     string
 	insightsHost string
 	enableCost   bool
+	cacheTTL     time.Duration
+	enableGzip   bool
 )
 
 func init() {
@@ -43,6 +46,8 @@ func init() {
 	dashboardCmd.PersistentFlags().StringVar(&basePath, "base-path", "/", "Path on which the dashboard is served.")
 	dashboardCmd.PersistentFlags().BoolVar(&enableCost, "enable-cost", true, "If set to false, the cost integration will be disabled on the dashboard.")
 	dashboardCmd.PersistentFlags().StringVar(&insightsHost, "insights-host", "https://insights.fairwinds.com", "Insights host for retrieving optional cost data.")
+	dashboardCmd.PersistentFlags().DurationVar(&cacheTTL, "cache-ttl", 30*time.Second, "How long to memoize the dashboard summary in memory. Set to 0 to disable caching.")
+	dashboardCmd.PersistentFlags().BoolVar(&enableGzip, "enable-gzip", true, "Gzip-compress HTML and JSON responses.")
 }
 
 var dashboardCmd = &cobra.Command{
@@ -59,6 +64,8 @@ var dashboardCmd = &cobra.Command{
 			dashboard.ShowAllVPAs(showAllVPAs),
 			dashboard.InsightsHost(insightsHost),
 			dashboard.EnableCost(enableCost),
+			dashboard.CacheTTL(cacheTTL),
+			dashboard.EnableGzip(enableGzip),
 		)
 		http.Handle("/", router)
 		klog.Infof("Starting goldilocks dashboard server on port %d and basePath %v", serverPort, validBasePath)

@@ -5,6 +5,8 @@
   const emailInputErrorId = "email-box__input-error";
   const emailCheckboxId = "email-box__checkbox";
   const submitBtnId = "email-box__submit-btn";
+  const closeBtnId = "email-box__close";
+  const dismissedStorageKey = "goldilocks:emailBoxDismissed";
 
   const emailBox = document.getElementById(emailBoxId);
   const emailLabelContent = document.getElementById(emailLabelContentId);
@@ -12,6 +14,7 @@
   const emailInputError = document.getElementById(emailInputErrorId);
   const emailCheckbox = document.getElementById(emailCheckboxId);
   const submitBtn = document.getElementById(submitBtnId);
+  const closeBtn = document.getElementById(closeBtnId);
 
   const urlParams = new URLSearchParams(window.location.search);
 
@@ -20,9 +23,20 @@
   }, 500);
 
   function initUIState() {
-    if (!urlParams.get("emailEntered")) {
-      emailBox.style.display = "block";
-    }
+    if (urlParams.get("emailEntered")) return;
+    if (localStorage.getItem(dismissedStorageKey) === "true") return;
+    emailBox.style.display = "block";
+  }
+
+  if (closeBtn) {
+    closeBtn.addEventListener("click", function () {
+      emailBox.style.display = "none";
+      try {
+        localStorage.setItem(dismissedStorageKey, "true");
+      } catch (_) {
+        // ignore storage failures (private mode, etc.)
+      }
+    });
   }
 
   emailInput.addEventListener("input", function (evt) {

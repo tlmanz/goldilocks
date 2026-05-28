@@ -1,5 +1,13 @@
 {{ define "email" }}
 <aside class="email-box" id="email-box">
+  <button
+    type="button"
+    id="email-box__close"
+    class="email-box__close"
+    aria-label="Dismiss cost estimates banner"
+  >
+    <i aria-hidden="true" class="fas fa-times"></i>
+  </button>
   <details open>
     <summary class="email-box__toggle-title">
         Add cost estimates to your Goldilocks dashboard!

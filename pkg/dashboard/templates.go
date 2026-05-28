@@ -22,6 +22,7 @@ const (
 	HeadTemplateName        = "head.gohtml"
 	NamespaceTemplateName   = "namespace.gohtml"
 	NavigationTemplateName  = "navigation.gohtml"
+	SummaryCardsTemplateName = "summary_cards.gohtml"
 	EmailTemplateName       = "email.gohtml"
 	ApiTokenTemplateName    = "api_token.gohtml"
 	CostSettingTemplateName = "cost_settings.gohtml"
@@ -54,12 +55,19 @@ var templatedFS embed.FS
 // getTemplate puts together a template. Individual pieces can be overridden before rendering.
 func getTemplate(name string, opts Options, includedTemplates ...string) (*template.Template, error) {
 	tmpl := template.New(name).Funcs(template.FuncMap{
-		"printResource":  helpers.PrintResource,
-		"getStatus":      helpers.GetStatus,
-		"getStatusRange": helpers.GetStatusRange,
-		"resourceName":   helpers.ResourceName,
-		"getUUID":        helpers.GetUUID,
-		"hasField":       helpers.HasField,
+		"printResource":   helpers.PrintResource,
+		"getStatus":       helpers.GetStatus,
+		"getStatusRange":  helpers.GetStatusRange,
+		"resourceName":    helpers.ResourceName,
+		"getUUID":         helpers.GetUUID,
+		"hasField":        helpers.HasField,
+		"controllerIcon":  helpers.ControllerIcon,
+		"slugify":         helpers.Slugify,
+		"diffPercent":     helpers.DiffPercent,
+		"diffDirection":   helpers.DiffDirection,
+		"dict":            helpers.Dict,
+		"lower":           strings.ToLower,
+		"containerState":  helpers.ContainerState,
 
 		"opts": func() Options {
 			return opts

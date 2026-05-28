@@ -33,6 +33,14 @@ func GetRouter(setters ...Option) *mux.Router {
 
 	router := mux.NewRouter().PathPrefix(strings.TrimSuffix(opts.BasePath, "/")).Subrouter().StrictSlash(true)
 
+	// Shared summary cache used by both the dashboard and API handlers so they
+	// reuse the same build for the duration of the configured TTL.
+	cache := newSummaryCache(opts.CacheTTL)
+
+	if opts.EnableGzip {
+		router.Use(gzipMiddleware)
+	}
+
 	// health
 	router.Handle("/health", Health("OK"))
 	router.Handle("/healthz", Healthz())
@@ -53,8 +61,8 @@ func GetRouter(setters ...Option) *mux.Router {
 	router.PathPrefix("/static/").Handler(http.StripPrefix(path.Join(opts.BasePath, "/static/"), fileServer))
 
 	// dashboard
-	router.Handle("/dashboard", Dashboard(*opts))
-	router.Handle("/dashboard/{namespace:[a-zA-Z0-9-]+}", Dashboard(*opts))
+	router.Handle("/dashboard", Dashboard(*opts, cache))
+	router.Handle("/dashboard/{namespace:[a-zA-Z0-9-]+}", Dashboard(*opts, cache))
 
 	// namespace list
 	router.Handle("/namespaces", NamespaceList(*opts))
@@ -74,6 +82,6 @@ func GetRouter(setters ...Option) *mux.Router {
 	})
 
 	// api
-	router.Handle("/api/{namespace:[a-zA-Z0-9-]+}", API(*opts))
+	router.Handle("/api/{namespace:[a-zA-Z0-9-]+}", API(*opts, cache))
 	return router
 }

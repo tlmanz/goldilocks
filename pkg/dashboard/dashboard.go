@@ -35,8 +35,9 @@ const (
 // Limit data loss to only 5% due to rounding error.
 const roundingThreshold = 10
 
-// Dashboard replies with the rendered dashboard (on the basePath) for the summarizer
-func Dashboard(opts Options) http.Handler {
+// Dashboard replies with the rendered dashboard (on the basePath) for the summarizer.
+// The cache is shared with API so repeated requests reuse the same summary build.
+func Dashboard(opts Options, cache *summaryCache) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
@@ -48,7 +49,9 @@ func Dashboard(opts Options) http.Handler {
 			namespace = val
 		}
 
-		vpaData, err := getVPAData(opts, namespace, costPerCPU, costPerGB)
+		vpaData, stats, builtAt, err := cache.Get(namespace, costPerCPU, costPerGB, func() (summary.Summary, error) {
+			return getVPAData(opts, namespace, costPerCPU, costPerGB)
+		})
 		if err != nil {
 			klog.Errorf("Error getting vpa data %v", err)
 			http.Error(w, "Error getting vpa data", http.StatusInternalServerError)
@@ -60,6 +63,7 @@ func Dashboard(opts Options) http.Handler {
 			"dashboard",
 			"filter",
 			"namespace",
+			"summary_cards",
 			"email",
 			"api_token",
 			"cost_settings",
@@ -71,17 +75,21 @@ func Dashboard(opts Options) http.Handler {
 		}
 
 		data := struct {
-			VpaData summary.Summary
+			VpaData         summary.Summary
+			Stats           DashboardStats
+			GeneratedAtUnix int64
 		}{
-			VpaData: vpaData,
+			VpaData:         vpaData,
+			Stats:           stats,
+			GeneratedAtUnix: builtAt,
 		}
 
 		writeTemplate(tmpl, opts, &data, w)
 	})
 }
 
-// API replies with the JSON data of the VPA summary
-func API(opts Options) http.Handler {
+// API replies with the JSON data of the VPA summary.
+func API(opts Options, cache *summaryCache) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 
@@ -93,7 +101,9 @@ func API(opts Options) http.Handler {
 			namespace = val
 		}
 
-		vpaData, err := getVPAData(opts, namespace, costPerCPU, costPerGB)
+		vpaData, _, _, err := cache.Get(namespace, costPerCPU, costPerGB, func() (summary.Summary, error) {
+			return getVPAData(opts, namespace, costPerCPU, costPerGB)
+		})
 		if err != nil {
 			klog.Errorf("Error getting vpa data %v", err)
 			http.Error(w, "Error getting vpa data", http.StatusInternalServerError)

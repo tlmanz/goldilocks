@@ -17,6 +17,7 @@ package summary
 import (
 	"context"
 	"strings"
+	"sync"
 
 	controllerUtils "github.com/fairwindsops/controller-utils/pkg/controller"
 	corev1 "k8s.io/api/core/v1"
@@ -45,6 +46,16 @@ type namespaceSummary struct {
 	Workloads       map[string]workloadSummary `json:"workloads"`
 	BasePath        string
 	IsOnlyNamespace bool
+	// LastRecommendationUnix is the most recent VPA recommendation timestamp
+	// (from the RecommendationProvided condition) across all VPAs in this
+	// namespace, as a unix epoch in seconds. Zero when no VPA reports it.
+	LastRecommendationUnix int64 `json:"lastRecommendationUnix,omitempty"`
+
+	// Aggregated render-time stats. Populated by the dashboard handler after
+	// the base summary is built.
+	NeedsAttention int   `json:"needsAttention,omitempty"`
+	LowConfidence  int   `json:"lowConfidence,omitempty"`
+	SavingsScore   int64 `json:"savingsScore,omitempty"`
 }
 
 type workloadSummary struct {
@@ -52,6 +63,14 @@ type workloadSummary struct {
 	ControllerType string                      `json:"controllerType"`
 	Containers     map[string]ContainerSummary `json:"containers"`
 	BasePath       string
+	// Replicas is the workload's desired pod count when knowable from the
+	// resource spec/status. nil means "not applicable for this controller
+	// type" (CronJob, Job, etc.); 0 means explicitly scaled to zero.
+	Replicas *int32 `json:"replicas,omitempty"`
+	// LowConfidence is true when the VPA reports the LowConfidence condition,
+	// i.e. it hasn't yet observed enough samples to produce reliable
+	// recommendations.
+	LowConfidence bool `json:"lowConfidence,omitempty"`
 }
 
 type ContainerSummary struct {
@@ -163,6 +182,25 @@ func (s Summarizer) GetSummary() (Summary, error) {
 			continue
 		}
 
+		if replicas, ok := getWorkloadReplicas(workload.TopController); ok {
+			wSummary.Replicas = &replicas
+		}
+
+		// Read VPA conditions to surface confidence and last-update info.
+		for _, cond := range vpa.Status.Conditions {
+			switch cond.Type {
+			case vpav1.LowConfidence:
+				if cond.Status == corev1.ConditionTrue {
+					wSummary.LowConfidence = true
+				}
+			case vpav1.RecommendationProvided:
+				ts := cond.LastTransitionTime.Unix()
+				if ts > nsSummary.LastRecommendationUnix {
+					nsSummary.LastRecommendationUnix = ts
+				}
+			}
+		}
+
 		if vpa.Status.Recommendation == nil {
 			klog.V(2).Infof("Empty status on %v", wSummary.ControllerName)
 			nsSummary.Workloads[wSummary.ControllerName] = wSummary
@@ -248,20 +286,32 @@ func (s Summarizer) GetSummary() (Summary, error) {
 	return summary, nil
 }
 
-// Update the set of VPAs and Workloads that the Summarizer uses for creating a summary
+// Update the set of VPAs and Workloads that the Summarizer uses for creating
+// a summary. The two API reads are independent so we run them concurrently
+// — for large clusters this roughly halves the cache-miss latency.
 func (s *Summarizer) Update() error {
-	err := s.updateVPAs()
-	if err != nil {
-		klog.Error(err.Error())
-		return err
-	}
+	var wg sync.WaitGroup
+	var vpaErr, workloadErr error
 
-	err = s.updateWorkloads()
-	if err != nil {
-		klog.Error(err.Error())
-		return err
-	}
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		vpaErr = s.updateVPAs()
+	}()
+	go func() {
+		defer wg.Done()
+		workloadErr = s.updateWorkloads()
+	}()
+	wg.Wait()
 
+	if vpaErr != nil {
+		klog.Error(vpaErr.Error())
+		return vpaErr
+	}
+	if workloadErr != nil {
+		klog.Error(workloadErr.Error())
+		return workloadErr
+	}
 	return nil
 }
 
@@ -344,4 +394,21 @@ func (s Summarizer) listWorkloads() ([]controllerUtils.Workload, error) {
 	}
 
 	return workloads, nil
+}
+
+// getWorkloadReplicas attempts to read the desired-replica count from an
+// unstructured workload. Returns (0, false) when the controller type does not
+// expose a comparable "scale" field (Job, CronJob, etc.).
+func getWorkloadReplicas(u unstructured.Unstructured) (int32, bool) {
+	switch strings.ToLower(u.GetKind()) {
+	case "deployment", "statefulset", "replicaset", "replicationcontroller":
+		if v, found, err := unstructured.NestedInt64(u.UnstructuredContent(), "spec", "replicas"); err == nil && found {
+			return int32(v), true
+		}
+	case "daemonset":
+		if v, found, err := unstructured.NestedInt64(u.UnstructuredContent(), "status", "desiredNumberScheduled"); err == nil && found {
+			return int32(v), true
+		}
+	}
+	return 0, false
 }

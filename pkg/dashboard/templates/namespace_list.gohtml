@@ -14,11 +14,32 @@
   </header>
 
   <div class="layoutSidebar__main">
-    <main class="verticalRhythm">
-      <h1>Namespaces</h1>
+    <main class="verticalRhythm --rhythm-3">
+      <header class="pageHero">
+        <div class="pageHero__text">
+          <p class="pageHero__eyebrow">Goldilocks</p>
+          <h1>Namespaces</h1>
+          <p class="pageHero__lead">
+            {{ if lt (len .Data.Namespaces) 1 }}
+              No namespaces are currently labelled for Goldilocks. Enable one to start getting VPA recommendations.
+            {{ else }}
+              Browse all namespaces enabled for VPA recommendations. Pick one to dive into per-workload details.
+            {{ end }}
+          </p>
+        </div>
+        <div class="pageHero__stat">
+          <p class="pageHero__statValue">{{ len .Data.Namespaces }}</p>
+          <p class="pageHero__statLabel">Namespaces</p>
+        </div>
+      </header>
 
       {{ if lt (len .Data.Namespaces) 1 }}
-      <p>No namespaces are labelled for use by Goldilocks. Try labelling one with <code class="language-shell">kubectl label ns NAMESPACE_NAME goldilocks.fairwinds.com/enabled=true</code></p>
+      <div class="emptyState">
+        <i aria-hidden="true" class="fas fa-folder-open emptyState__icon"></i>
+        <h2 class="emptyState__title">No namespaces yet</h2>
+        <p>Label a namespace to enable VPA recommendations:</p>
+        <pre><code class="language-shell">kubectl label ns NAMESPACE_NAME goldilocks.fairwinds.com/enabled=true</code></pre>
+      </div>
       {{ else }}
         {{ if gt (len .Data.Namespaces) 1 }}
           {{ template "filter" .Data.Namespaces }}
@@ -27,9 +48,13 @@
       <ul aria-live="off" class="namespaceList" id="js-filter-container" role="list">
         {{ range .Data.Namespaces }}
         <li data-filter="{{ .Name }}">
-          <a class="buttonLink --withIcon" href="{{ $.BasePath }}dashboard/{{ .Name }}">
-            {{ .Name }}
-            <i aria-hidden="true" class="fas fa-fw fa-chevron-right"></i>
+          <a class="nsCard" href="{{ $.BasePath }}dashboard/{{ .Name }}">
+            <span class="nsCard__avatar" aria-hidden="true">{{ slice .Name 0 1 }}</span>
+            <span class="nsCard__body">
+              <span class="nsCard__name">{{ .Name }}</span>
+              <span class="nsCard__sub">View workload details</span>
+            </span>
+            <i aria-hidden="true" class="nsCard__arrow fas fa-arrow-right"></i>
           </a>
         </li>
         {{ end }}

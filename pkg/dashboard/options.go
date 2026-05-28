@@ -1,6 +1,8 @@
 package dashboard
 
 import (
+	"time"
+
 	"github.com/fairwindsops/goldilocks/pkg/utils"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -18,6 +20,11 @@ type Options struct {
 	ShowAllVPAs        bool
 	InsightsHost       string
 	EnableCost         bool
+	// CacheTTL controls how long the dashboard summary is memoized in memory.
+	// Zero disables the cache. Defaults to 30s.
+	CacheTTL time.Duration
+	// EnableGzip toggles gzip response compression on the dashboard router.
+	EnableGzip bool
 }
 
 // default options for the dashboard
@@ -30,6 +37,8 @@ func defaultOptions() *Options {
 		OnByDefault:        false,
 		ShowAllVPAs:        false,
 		EnableCost:         true,
+		CacheTTL:           30 * time.Second,
+		EnableGzip:         true,
 	}
 }
 
@@ -82,5 +91,19 @@ func InsightsHost(insightsHost string) Option {
 func EnableCost(enableCost bool) Option {
 	return func(opts *Options) {
 		opts.EnableCost = enableCost
+	}
+}
+
+// CacheTTL sets the dashboard summary cache duration. Zero disables caching.
+func CacheTTL(ttl time.Duration) Option {
+	return func(opts *Options) {
+		opts.CacheTTL = ttl
+	}
+}
+
+// EnableGzip toggles gzip response compression on the dashboard router.
+func EnableGzip(enable bool) Option {
+	return func(opts *Options) {
+		opts.EnableGzip = enable
 	}
 }

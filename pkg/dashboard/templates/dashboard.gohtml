@@ -40,7 +40,52 @@
       {{ template "cost_settings" . }}
       {{- end }}
 
-      <h1>Namespace Details</h1>
+      <header class="pageHeader">
+        <div>
+          <h1>Namespace Details</h1>
+          <p class="pageHeader__meta">
+            Updated
+            <time
+              id="js-generated-at"
+              data-unix="{{ .Data.GeneratedAtUnix }}"
+            >just now</time>
+          </p>
+        </div>
+        <div class="pageHeader__actions">
+          <button
+            type="button"
+            class="js-export-all linkPill"
+            data-format="csv"
+            title="Download current + recommended resources for every visible namespace as CSV"
+          >
+            <i aria-hidden="true" class="fas fa-fw fa-file-csv"></i>
+            Export all (CSV)
+          </button>
+          <button
+            type="button"
+            class="js-show-reviewed linkPill linkPill--ghost"
+            aria-pressed="false"
+            title="Toggle visibility of workloads you've marked reviewed"
+          >
+            <i aria-hidden="true" class="fas fa-fw fa-eye"></i>
+            <span class="js-show-reviewed-label">Show reviewed</span>
+          </button>
+          <label class="autoRefresh" title="Reload the dashboard on a fixed interval">
+            <span class="autoRefresh__label">
+              <i aria-hidden="true" class="fas fa-fw fa-sync-alt"></i>
+              Auto-refresh
+            </span>
+            <select id="js-autorefresh" class="control-select control-select--small">
+              <option value="0">Off</option>
+              <option value="30">30s</option>
+              <option value="60">1 min</option>
+              <option value="300">5 min</option>
+            </select>
+          </label>
+        </div>
+      </header>
+
+      {{ template "summary_cards" . }}
 
       {{ if gt (len .Data.VpaData.Namespaces) 1 }}
         {{ template "filter" .Data.VpaData.Namespaces }}
@@ -57,100 +102,6 @@
           {{ template "namespace" $nsSummary }}
         {{end}}
       </div>
-
-      <aside class="verticalRhythm" id="glossary">
-        <h2>Glossary</h2>
-
-        <dl>
-          <div class="dl-entry">
-            <dt id="qos">QoS</dt>
-            <dd>
-              <blockquote>
-                "QoS (Quality of Service) class is a designation assigned to a pod based on its resource requests and limits. Kubernetes uses QoS classes to make decisions about scheduling and evicting Pods."
-
-                <cite>
-                  <a
-                    class="--link-1"
-                    href="https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod"
-                    rel="noreferrer noopener"
-                    target="_blank"
-                  >
-                    Kubernetes Documentation:
-                    <br>Configure Quality of Service for Pods <i
-                      aria-label="(Opens in new window)"
-                      class="fas fa-fw fa-external-link-alt"
-                    ></i>
-                  </a>
-                </cite>
-              </blockquote>
-            </dd>
-          </div>
-
-          <div class="dl-entry">
-            <dt id="guaranteed-qos">Guaranteed QoS</dt>
-            <dd>
-              <blockquote>
-                "For a Pod to be given a QoS class of Guaranteed:
-                <ul>
-                  <li>
-                    Every Container, including init containers, in the Pod must have a memory limit and a memory request, and they must be the same.
-                  </li>
-                  <li>
-                    Every Container, including init containers, in the Pod must have a CPU limit and a CPU request, and they must be the same."
-                  </li>
-                </ul>
-
-                <cite>
-                  <a
-                    class="--link-1"
-                    href="https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/#create-a-pod-that-gets-assigned-a-qos-class-of-guaranteed"
-                    rel="noreferrer noopener"
-                    target="_blank"
-                  >
-                    Kubernetes Documentation:
-                    <br>Create a Pod That Gets Assigned a QoS Class of Guaranteed <i
-                      aria-label="(Opens in new window)"
-                      class="fas fa-fw fa-external-link-alt"
-                    ></i>
-                  </a>
-                </cite>
-              </blockquote>
-            </dd>
-          </div>
-
-          <div class="dl-entry">
-            <dt id="burstable-qos">Burstable QoS</dt>
-            <dd>
-              <blockquote>
-                "A Pod is given a QoS class of Burstable if:
-                <ul>
-                  <li>
-                    The Pod does not meet the criteria for QoS class Guaranteed.
-                  </li>
-                  <li>
-                    At least one Container in the Pod has a memory or CPU request."
-                  </li>
-                </ul>
-
-                <cite>
-                  <a
-                    class="--link-1"
-                    href="https://kubernetes.io/docs/tasks/configure-pod-container/quality-service-pod/#create-a-pod-that-gets-assigned-a-qos-class-of-burstable"
-                    rel="noreferrer noopener"
-                    target="_blank"
-                  >
-                    Kubernetes Documentation:
-                    <br>Create a Pod That Gets Assigned a QoS Class of Burstable <i
-                      aria-label="(Opens in new window)"
-                      class="fas fa-fw fa-external-link-alt"
-                    ></i>
-                  </a>
-                </cite>
-              </blockquote>
-            </dd>
-          </div>
-        </dl>
-      </aside>
     </main>
 
     <footer>
