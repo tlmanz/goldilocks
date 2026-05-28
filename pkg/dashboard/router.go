@@ -22,6 +22,8 @@ import (
 
 	"github.com/gorilla/mux"
 	"k8s.io/klog/v2"
+
+	"github.com/fairwindsops/goldilocks/pkg/history"
 )
 
 // GetRouter returns a mux router serving all routes necessary for the dashboard
@@ -83,5 +85,22 @@ func GetRouter(setters ...Option) *mux.Router {
 
 	// api
 	router.Handle("/api/{namespace:[a-zA-Z0-9-]+}", API(*opts, cache))
+
+	// history: prefer a Store the caller already opened (typically because
+	// the dashboard cmd is also running the in-process collector against the
+	// same file). Otherwise open one from HistoryDBPath. If neither is set or
+	// the open fails we still register the endpoint so callers get a clear
+	// 503 rather than a 404.
+	historyStore := opts.HistoryStore
+	if historyStore == nil && opts.HistoryDBPath != "" {
+		hs, err := history.Open(opts.HistoryDBPath)
+		if err != nil {
+			klog.Errorf("history: open %q failed: %v — /api/history will return 503", opts.HistoryDBPath, err)
+		} else {
+			historyStore = hs
+		}
+	}
+	router.Handle("/api/history", History(historyStore))
+
 	return router
 }

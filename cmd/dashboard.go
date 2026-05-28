@@ -15,9 +15,13 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -25,16 +29,22 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/fairwindsops/goldilocks/pkg/dashboard"
+	"github.com/fairwindsops/goldilocks/pkg/history"
+	"github.com/fairwindsops/goldilocks/pkg/summary"
 )
 
 var (
-	serverPort   int
-	showAllVPAs  bool
-	basePath     string
-	insightsHost string
-	enableCost   bool
-	cacheTTL     time.Duration
-	enableGzip   bool
+	serverPort         int
+	showAllVPAs        bool
+	basePath           string
+	insightsHost       string
+	enableCost         bool
+	cacheTTL           time.Duration
+	enableGzip         bool
+	dashboardHistoryDB        string
+	dashboardCollectHistory   bool
+	dashboardHistoryInterval  time.Duration
+	dashboardHistoryRetention time.Duration
 )
 
 func init() {
@@ -48,6 +58,10 @@ func init() {
 	dashboardCmd.PersistentFlags().StringVar(&insightsHost, "insights-host", "https://insights.fairwinds.com", "Insights host for retrieving optional cost data.")
 	dashboardCmd.PersistentFlags().DurationVar(&cacheTTL, "cache-ttl", 30*time.Second, "How long to memoize the dashboard summary in memory. Set to 0 to disable caching.")
 	dashboardCmd.PersistentFlags().BoolVar(&enableGzip, "enable-gzip", true, "Gzip-compress HTML and JSON responses.")
+	dashboardCmd.PersistentFlags().StringVar(&dashboardHistoryDB, "history-db", "", "Path to the SQLite history database. When set, the dashboard exposes /api/history and renders trend sparklines.")
+	dashboardCmd.PersistentFlags().BoolVar(&dashboardCollectHistory, "collect-history", true, "Run the history collector inside the dashboard Pod (writes to --history-db). Disable if a sidecar / separate controller is doing the writes.")
+	dashboardCmd.PersistentFlags().DurationVar(&dashboardHistoryInterval, "history-interval", 5*time.Minute, "How often the in-process collector writes a snapshot.")
+	dashboardCmd.PersistentFlags().DurationVar(&dashboardHistoryRetention, "history-retention", 168*time.Hour, "How long to keep snapshots. Zero disables pruning.")
 }
 
 var dashboardCmd = &cobra.Command{
@@ -56,6 +70,43 @@ var dashboardCmd = &cobra.Command{
 	Long:  `Run the goldilocks dashboard that will show recommendations.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		var validBasePath = validateBasePath(basePath)
+
+		// Open the history Store once and share it between the in-process
+		// collector and the dashboard router, so both halves talk to the same
+		// connection pool (avoids two opens against the same SQLite file).
+		var historyStore *history.Store
+		if dashboardHistoryDB != "" {
+			hs, err := history.Open(dashboardHistoryDB)
+			if err != nil {
+				klog.Errorf("history: open %q failed: %v — trends disabled", dashboardHistoryDB, err)
+			} else {
+				historyStore = hs
+				defer func() {
+					if err := hs.Close(); err != nil {
+						klog.Errorf("history: close store: %v", err)
+					}
+				}()
+			}
+		}
+
+		// In-process collector — writes snapshots into the same Store the
+		// router serves from. Recommended deployment: dashboard runs alone
+		// with --history-db and --collect-history=true (default), avoiding
+		// the need for a shared PVC between controller and dashboard.
+		historyCtx, cancelHistory := context.WithCancel(context.Background())
+		defer cancelHistory()
+		if historyStore != nil && dashboardCollectHistory {
+			collector := &history.Collector{
+				Store:     historyStore,
+				Interval:  dashboardHistoryInterval,
+				Retention: dashboardHistoryRetention,
+				NewSummary: func() (summary.Summary, error) {
+					return summary.NewSummarizer().GetSummary()
+				},
+			}
+			go collector.Run(historyCtx)
+		}
+
 		router := dashboard.GetRouter(
 			dashboard.OnPort(serverPort),
 			dashboard.BasePath(validBasePath),
@@ -66,9 +117,23 @@ var dashboardCmd = &cobra.Command{
 			dashboard.EnableCost(enableCost),
 			dashboard.CacheTTL(cacheTTL),
 			dashboard.EnableGzip(enableGzip),
+			dashboard.HistoryDBPath(dashboardHistoryDB),
+			dashboard.HistoryStore(historyStore),
 		)
 		http.Handle("/", router)
 		klog.Infof("Starting goldilocks dashboard server on port %d and basePath %v", serverPort, validBasePath)
+
+		// Stop the collector cleanly on SIGINT/SIGTERM. The HTTP server is
+		// blocking ListenAndServe so we listen for signals in a goroutine.
+		go func() {
+			signals := make(chan os.Signal, 1)
+			signal.Notify(signals, syscall.SIGTERM, syscall.SIGINT)
+			s := <-signals
+			klog.Infof("Got signal: %v, stopping history collector", s)
+			cancelHistory()
+			os.Exit(0)
+		}()
+
 		klog.Fatalf("%v", http.ListenAndServe(fmt.Sprintf(":%d", serverPort), nil))
 	},
 }

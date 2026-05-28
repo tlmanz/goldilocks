@@ -766,6 +766,134 @@ body.show-reviewed .is-reviewed:hover {
   content: "✓ ";
 }
 
+/*
+-----
+HISTORY TREND
+-----
+*/
+
+.historyCard {
+  background: var(--color-bg-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: var(--gap-0);
+  padding: 0.6rem 0.9rem;
+}
+
+.historyCard__header {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  justify-content: space-between;
+}
+
+.historyCard__title {
+  align-items: center;
+  color: var(--color-text-2);
+  display: inline-flex;
+  font-size: var(--step--1);
+  font-weight: 600;
+  gap: 0.35rem;
+}
+
+.historyCard__hint {
+  color: var(--color-text-muted);
+  font-weight: 400;
+  margin-left: 0.4rem;
+}
+
+.historyCard__body {
+  align-items: center;
+  display: flex;
+  min-height: 44px;
+}
+
+.historyCard__body svg {
+  display: block;
+}
+
+.historyCard__placeholder {
+  color: var(--color-text-muted);
+  font-size: var(--step--1);
+}
+
+.historyCard__placeholder--muted {
+  opacity: 0.75;
+}
+
+/* Expanded chart dialog */
+.historyDialog {
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text-1);
+  max-width: min(820px, 92vw);
+  padding: 1.25rem 1.5rem;
+  width: 820px;
+}
+
+.historyDialog::backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.historyDialog__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+}
+
+.historyDialog__title {
+  font-size: var(--step-2);
+  margin: 0;
+}
+
+.historyDialog__sub {
+  color: var(--color-text-muted);
+  font-size: var(--step--1);
+  margin: 0.2rem 0 0;
+}
+
+.historyDialog__chart {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.historyDialog__legend {
+  align-items: center;
+  color: var(--color-text-muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: var(--step--1);
+  gap: 1rem;
+  justify-content: center;
+}
+
+.legendSwatch {
+  border-radius: 2px;
+  display: inline-block;
+  height: 3px;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+  width: 14px;
+}
+
+.legendSwatch--dashed {
+  background: repeating-linear-gradient(
+    90deg,
+    currentColor 0 4px,
+    transparent 4px 7px
+  );
+  background-color: transparent !important;
+}
+
 
 
 /* Badges */

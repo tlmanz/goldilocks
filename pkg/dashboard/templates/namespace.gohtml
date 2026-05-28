@@ -175,6 +175,34 @@
           <details open>
             <summary>Details</summary>
 
+            <div
+              class="historyCard js-history"
+              data-ns="{{ $.Namespace }}"
+              data-kind="{{ $workload.ControllerType }}"
+              data-workload="{{ $workload.ControllerName }}"
+              data-container="{{ $cName }}"
+            >
+              <div class="historyCard__header">
+                <span class="historyCard__title">
+                  <i aria-hidden="true" class="fas fa-fw fa-chart-line"></i>
+                  Trend
+                  <span class="historyCard__hint">last 24h</span>
+                </span>
+                <button
+                  type="button"
+                  class="js-history-expand linkPill linkPill--ghost"
+                  title="Open the full chart"
+                  disabled
+                >
+                  <i aria-hidden="true" class="fas fa-fw fa-expand"></i>
+                  Expand
+                </button>
+              </div>
+              <div class="historyCard__body" aria-live="polite">
+                <span class="historyCard__placeholder">Loading…</span>
+              </div>
+            </div>
+
             <div class="layoutLineup">
               {{ template "container" (dict "Summary" $cSummary "Namespace" $.Namespace "WorkloadName" $workload.ControllerName "WorkloadType" $workload.ControllerType "ContainerName" $cName) }}
             </div>

@@ -3,6 +3,7 @@ package dashboard
 import (
 	"time"
 
+	"github.com/fairwindsops/goldilocks/pkg/history"
 	"github.com/fairwindsops/goldilocks/pkg/utils"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
@@ -25,6 +26,15 @@ type Options struct {
 	CacheTTL time.Duration
 	// EnableGzip toggles gzip response compression on the dashboard router.
 	EnableGzip bool
+	// HistoryDBPath, when non-empty, points at a SQLite database used for
+	// trend history. The dashboard process can both write to it (when the
+	// in-process collector is enabled) and read from it via /api/history.
+	HistoryDBPath string
+	// HistoryStore, when non-nil, is an already-opened store the dashboard
+	// router should serve from. Takes precedence over HistoryDBPath so that
+	// the dashboard cmd can share a single Store with an in-process collector
+	// (avoiding two opens of the same SQLite file in the same process).
+	HistoryStore *history.Store
 }
 
 // default options for the dashboard
@@ -105,5 +115,21 @@ func CacheTTL(ttl time.Duration) Option {
 func EnableGzip(enable bool) Option {
 	return func(opts *Options) {
 		opts.EnableGzip = enable
+	}
+}
+
+// HistoryDBPath sets the SQLite history database path. Empty disables history.
+func HistoryDBPath(path string) Option {
+	return func(opts *Options) {
+		opts.HistoryDBPath = path
+	}
+}
+
+// HistoryStore lets the caller hand in an already-opened *history.Store so
+// the router doesn't open a second connection pool against the same SQLite
+// file (typically because the same process is also running the collector).
+func HistoryStore(store *history.Store) Option {
+	return func(opts *Options) {
+		opts.HistoryStore = store
 	}
 }
